@@ -6,9 +6,12 @@ function App() {
   const [ playListId, setplayListId] = useState(null);
   const [ tracks, setTracks ] = useState([]);
   const [ carouselIndex, setCarouselIndex] = useState(0);
-  const [ carouselWidth, setCarouselWidth ] = useState(0);
 
   const baseURL = 'http://demo.subsonic.org/rest/getAlbumList2?u=guest&p=guest&v=1.16.1&c=myapp12&f=json'
+
+  const generateUrl = (route, id) => {
+    return `http://demo.subsonic.org/rest/${route}?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${id}`
+  }
 
   useEffect(async() => {
     let albumsResponse = [];
@@ -26,7 +29,7 @@ function App() {
         setplayListId(albumsResponse[0].id);
       }
       let tracksResponse = [];
-      await fetch(`http://demo.subsonic.org/rest/getAlbum?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${playListId}`)
+      await fetch(generateUrl('getAlbum', playListId))
         .then(res => {
           return res.json();
         })
@@ -48,12 +51,6 @@ function App() {
 
   const carouselRef = useRef(null);
 
-  useEffect(() => {
-    if (carouselRef.current) {
-      setCarouselWidth(carouselRef.current.offsetWidth);
-    } 
-  }, [carouselRef])
-
   const handleCarousel = (isLeftArrow) => {
     if (isLeftArrow) {
       if (carouselIndex !== 0) {
@@ -66,10 +63,11 @@ function App() {
     }
   }
 
-  const handleCarouselPosition = useCallback(() => {
-    console.log(carouselWidth, 'carouselWidth');
-    return ((900 / 2) - ((carouselIndex + 1) * 95));
-  }, [carouselWidth, carouselIndex]);
+  const handleCarouselPosition = () => {
+    if (carouselRef.current) {
+      return ((carouselRef.current.offsetWidth / 2) - ((carouselIndex + 1) * 100));
+    }
+  };
 
   return (
     <div className="App">
@@ -82,15 +80,11 @@ function App() {
                 <div
                   key={album.id}
                   style={{
-                    borderColor: index === carouselIndex ? "black" : "grey"
+                    borderColor: index === carouselIndex ? "black" : "grey",
+                    backgroundImage: `url(${generateUrl('getCoverArt', album.id)})`
                   }}
                   className="album-cover"
-                >
-                  <img
-                    src={`http://demo.subsonic.org/rest/getCoverArt?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${album.id}`}
-                    onClick={() => setplayListId(album.id)}
-                  />
-                </div>
+                />
               )
             })}
           </div>
