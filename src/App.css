@@ -36,3 +36,12 @@
     transform: rotate(360deg);
   }
 }
+
+.slider {
+  display: flex;
+}
+
+.album-cover {
+  width: 80px;
+  height: 80px;
+}
