@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import md5 from 'md5';
-import logo from './logo.svg';
+import { useEffect, useState, useCallback, useRef} from 'react';
 import './App.css';
 
 function App() {
   const [ albums, setAlbums ] = useState([]);
   const [ playListId, setplayListId] = useState(null);
-  const [ album, setAlbum ] = useState([]);
+  const [ tracks, setTracks ] = useState([]);
+  const [ carouselIndex, setCarouselIndex] = useState(0);
+  const [ carouselWidth, setCarouselWidth ] = useState(0);
 
   const baseURL = 'http://demo.subsonic.org/rest/getAlbumList2?u=guest&p=guest&v=1.16.1&c=myapp12&f=json'
 
@@ -17,57 +17,101 @@ function App() {
       return res.json()
     })
     .then(data => {
-      albumsResponse =  data["subsonic-response"].albumList2.album;
-    });
+      albumsResponse = data["subsonic-response"].albumList2.album;
+    })
  
     if (albumsResponse.length > 0) {
-      await setAlbums(albumsResponse);
-      await setplayListId(albumsResponse[0].id);
-      let albumResponse = [];
+      setAlbums(albumsResponse);
+      if(!playListId) {
+        setplayListId(albumsResponse[0].id);
+      }
+      let tracksResponse = [];
       await fetch(`http://demo.subsonic.org/rest/getAlbum?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${playListId}`)
         .then(res => {
-          console.log(res, 'ress')
-          return res.json()
+          return res.json();
         })
         .then(data => {
-          console.log(data, 'dara ')
-          if (data["subsonic-response"]) {
-            albumResponse = data["subsonic-response"].album
+          if (data["subsonic-response"].album) {
+            tracksResponse = data["subsonic-response"].album.song
           }
         })
       
-        setAlbum(albumsResponse);
+      setTracks(tracksResponse);
     }
-  }, []);
+  }, [playListId, setAlbums]);
 
-  console.log(album, 'asda')
+  
+
+  const selectedAlbum = useCallback(albums.find(album => {
+    return album.id === playListId
+  }), [albums, playListId]);
+
+  const carouselRef = useRef(null);
+
+  useEffect(() => {
+    if (carouselRef.current) {
+      setCarouselWidth(carouselRef.current.offsetWidth);
+    } 
+  }, [carouselRef])
+
+  const handleCarousel = (isLeftArrow) => {
+    if (isLeftArrow) {
+      if (carouselIndex !== 0) {
+        setCarouselIndex(carouselIndex - 1);
+      }
+    } else {
+      if (albums.length > (carouselIndex + 1)) {
+        setCarouselIndex(carouselIndex + 1)
+      }
+    }
+  }
+
+  const handleCarouselPosition = useCallback(() => {
+    console.log(carouselWidth, 'carouselWidth');
+    return ((900 / 2) - ((carouselIndex + 1) * 95));
+  }, [carouselWidth, carouselIndex]);
 
   return (
     <div className="App">
-      <div className="slider">
-          {albums.map(album => {
-            return (
-              <img
-                key={album.id}
-                src={`http://demo.subsonic.org/rest/getCoverArt?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${album.id}`}
-                style={{width: 80, height: 80}}
-              />
+      <div className="carousel">
+        <button onClick={() => handleCarousel(true)}>&lArr;</button>
+        <div className="carousel-container">
+          <div className="carousel-inner-container" ref={carouselRef} style={{left: handleCarouselPosition()}}>
+            {albums.map((album, index)=> {
+              return (
+                <div
+                  key={album.id}
+                  style={{
+                    borderColor: index === carouselIndex ? "black" : "grey"
+                  }}
+                  className="album-cover"
+                >
+                  <img
+                    src={`http://demo.subsonic.org/rest/getCoverArt?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${album.id}`}
+                    onClick={() => setplayListId(album.id)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        <button onClick={() => handleCarousel(false)}>&rArr;</button>
+      </div>
+      <h1>{selectedAlbum && selectedAlbum.name}</h1>
+      <table className="playList" border="1" cellSpacing="0">
+        <tbody>
+          <tr>
+            <td width="20%">#</td>
+            <td width="80%">track</td>
+          </tr>
+          {tracks.map((track, index) => {
+            return(
+              <tr key={track.id}>
+                <td>{index + 1}</td>
+                <td>{track.title}</td>
+              </tr>
             )
           })}
-      </div>
-      <h1></h1>
-      <table className="playList">
-        <tbody>
-          <td>
-            {/* {tracks.map((track, index) => {
-              return(
-                <tr key={track.id}>
-                  <td>{index + 1}</td>
-                  <td>{track.title}</td>
-                </tr>
-              )
-            })} */}
-          </td>
         </tbody>
       </table>
     </div>
