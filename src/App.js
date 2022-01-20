@@ -1,55 +1,54 @@
-import { useEffect, useState, useCallback, useRef} from 'react';
+import { useEffect, useState, useRef} from 'react';
 import './App.css';
 
 function App() {
   const [ albums, setAlbums ] = useState([]);
-  const [ playListId, setplayListId] = useState(null);
-  const [ tracks, setTracks ] = useState([]);
+  const [ playListId, setPlayListId] = useState(null);
   const [ carouselIndex, setCarouselIndex] = useState(0);
+  const [ tracks, setTracks ] = useState([]);
 
-  const baseURL = 'http://demo.subsonic.org/rest/getAlbumList2?u=guest&p=guest&v=1.16.1&c=myapp12&f=json'
+  const baseURL = 'http://demo.subsonic.org/rest/';
 
-  const generateUrl = (route, id) => {
-    return `http://demo.subsonic.org/rest/${route}?u=guest&p=guest&v=1.16.1&c=myapp12&type=recent&f=json&id=${id}`
+  const generateUrl = (route, query) => {
+    return `${baseURL}${route}?${query}`
   }
+  const apiAuthQuery = 'u=guest&p=guest&v=1.16.1&c=myapp12&f=json';
 
   useEffect(async() => {
     let albumsResponse = [];
-    await fetch(`${baseURL}&type=recent`)
-    .then((res) => {
-      return res.json()
-    })
-    .then(data => {
-      albumsResponse = data["subsonic-response"].albumList2.album;
-    })
- 
-    if (albumsResponse.length > 0) {
-      setAlbums(albumsResponse);
-      if(!playListId) {
-        setplayListId(albumsResponse[0].id);
-      }
-      let tracksResponse = [];
-      await fetch(generateUrl('getAlbum', playListId))
-        .then(res => {
-          return res.json();
-        })
-        .then(data => {
-          if (data["subsonic-response"].album) {
-            tracksResponse = data["subsonic-response"].album.song
-          }
-        })
-      
-      setTracks(tracksResponse);
+    await fetch(generateUrl('getAlbumList2', `${apiAuthQuery}&type=recent`))
+      .then((res) => {
+        return res.json()
+      })
+      .then(data => {
+        albumsResponse = data["subsonic-response"].albumList2.album;
+      });
+
+    setAlbums(albumsResponse);
+  }, []);
+
+  useEffect(() => {
+    if (albums.length > 0) {
+      setPlayListId(albums[carouselIndex].id);
     }
-  }, [playListId, setAlbums]);
+  }, [playListId, albums, carouselIndex]);
 
-  
+  useEffect(async () => {
+    let songsResponse;
+    await fetch(generateUrl('getAlbum', `${apiAuthQuery}&type=recent&id=${playListId}`))
+      .then(res => {
+        return res.json();
+      })
+      .then(data => {
+        if (data["subsonic-response"].album) {
+          songsResponse = data["subsonic-response"].album.song
+        }
+      });
+      if (songsResponse) {
+        setTracks(songsResponse);
+      }
+  }, [playListId]);
 
-  const selectedAlbum = useCallback(albums.find(album => {
-    return album.id === playListId
-  }), [albums, playListId]);
-
-  const carouselRef = useRef(null);
 
   const handleCarousel = (isLeftArrow) => {
     if (isLeftArrow) {
@@ -62,6 +61,8 @@ function App() {
       }
     }
   }
+  
+  const carouselRef = useRef(null);
 
   const handleCarouselPosition = () => {
     if (carouselRef.current) {
@@ -81,7 +82,7 @@ function App() {
                   key={album.id}
                   style={{
                     borderColor: index === carouselIndex ? "black" : "grey",
-                    backgroundImage: `url(${generateUrl('getCoverArt', album.id)})`
+                    backgroundImage: `url(${generateUrl('getCoverArt', `${apiAuthQuery}&type=recent&id=${album.id}`)})`
                   }}
                   className="album-cover"
                 />
@@ -91,7 +92,7 @@ function App() {
         </div>
         <button onClick={() => handleCarousel(false)}>&rArr;</button>
       </div>
-      <h1>{selectedAlbum && selectedAlbum.name}</h1>
+      {/* <h1>{selectedAlbum && selectedAlbum.name}</h1> */}
       <table className="playList" border="1" cellSpacing="0">
         <tbody>
           <tr>
